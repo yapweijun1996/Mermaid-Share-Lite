@@ -5,213 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mermaid Share Lite</title>
   <meta name="description" content="A lightweight, client-side editor for Mermaid diagrams.">
+  <link rel="stylesheet" href="css/style.css">
+  <!-- CodeMirror -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
   <style>
-    :root {
-      --bg-app: #f9fafb;
-      --bg-panel: #ffffff;
-      --border: #e5e7eb;
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --text-main: #1f2937;
-      --text-muted: #6b7280;
-      --danger: #ef4444;
-      --font-ui: system-ui, -apple-system, sans-serif;
-      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      --header-height: 60px;
-    }
-
-    * { box-sizing: border-box; }
-    
-    body {
-      margin: 0;
-      font-family: var(--font-ui);
-      background: var(--bg-app);
-      color: var(--text-main);
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* --- Header --- */
-    header {
-      height: var(--header-height);
-      background: var(--bg-panel);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 20px;
-      flex-shrink: 0;
-    }
-    .brand {
-      font-weight: 700;
-      font-size: 1.1rem;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .brand svg { width: 24px; height: 24px; }
-    
-    .actions { display: flex; gap: 8px; align-items: center; }
-
-    /* --- Layout --- */
-    main {
-      flex: 1;
-      display: flex;
-      overflow: hidden;
-    }
-    .panel {
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    .editor-panel {
-      width: 450px;
-      background: var(--bg-panel);
-      /* border-right: 1px solid var(--border); Removed in favor of gutter */
-      flex-shrink: 0;
-      /* transition: width 0.2s; Disable transition during drag for performance */
-    }
-    .preview-panel {
-      flex: 1;
-      background: #ffffff; /* Always white for canvas contrast */
-      position: relative;
-      min-width: 0; /* Prevent overflow in flex item */
-    }
-    
-    /* --- Resizer Gutter --- */
-    .gutter {
-      width: 10px;
-      background: #f9fafb;
-      border-left: 1px solid var(--border);
-      border-right: 1px solid var(--border);
-      cursor: col-resize;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s;
-      z-index: 10;
-    }
-    .gutter:hover, .gutter.dragging {
-      background: #e5e7eb;
-    }
-    /* Grip handle visual */
-    .gutter::after {
-      content: "";
-      width: 4px;
-      height: 20px;
-      border-left: 1px solid #d1d5db;
-      border-right: 1px solid #d1d5db;
-    }
-
-    /* --- Toolbar --- */
-    .toolbar {
-      padding: 10px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-      background: #f8f9fa;
-    }
-    
-    select, button {
-      padding: 6px 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: white;
-      font-size: 0.85rem;
-      cursor: pointer;
-      font-family: inherit;
-      color: var(--text-main);
-      transition: all 0.1s;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    button:hover, select:hover { background: #f3f4f6; border-color: #d1d5db; }
-    button:active { transform: translateY(1px); }
-    
-    button.primary {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
-    }
-    button.primary:hover { background: var(--primary-hover); }
-
-    /* --- Editor --- */
-    .editor-wrapper {
-      flex: 1;
-      position: relative;
-    }
-    textarea {
-      width: 100%;
+    /* CodeMirror Tweaks */
+    .CodeMirror {
       height: 100%;
-      border: none;
-      resize: none;
-      padding: 15px;
       font-family: var(--font-mono);
       font-size: 13px;
       line-height: 1.6;
-      outline: none;
       background: transparent;
-      color: #374151;
     }
-    textarea::placeholder { color: #9ca3af; }
-
-    /* --- Preview Area --- */
-    #preview {
-      width: 100%;
-      height: 100%;
-      overflow: auto;
-      display: grid;
-      place-items: center; /* Center the diagram */
-      padding: 40px;
+    .CodeMirror-gutters {
+      background: #f9fafb;
+      border-right: 1px solid #e5e7eb;
     }
-
-    /* --- Feedback/Error --- */
-    #error-container {
+    
+    /* Inline Edit Input */
+    #inline-editor {
+      position: absolute;
       display: none;
-      padding: 12px;
-      background: #fef2f2;
-      border-top: 1px solid #fecaca;
-      color: #991b1b;
-      font-size: 0.85rem;
-      font-family: var(--font-mono);
-      white-space: pre-wrap;
-      max-height: 150px;
-      overflow-y: auto;
-    }
-    #error-container.active { display: block; }
-
-    /* --- Toast --- */
-    .toast {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%) translateY(100px);
-      background: #1f2937;
-      color: white;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-size: 0.9rem;
-      opacity: 0;
-      transition: all 0.3s ease;
-      z-index: 1000;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-
-    /* --- Mobile --- */
-    @media (max-width: 768px) {
-      header { padding: 0 10px; }
-      .brand span { display: none; } /* Hide text on mobile */
-      main { flex-direction: column; }
-      .editor-panel { width: 100% !important; height: 40vh; border-right: none; border-bottom: 1px solid var(--border); }
-      .preview-panel { height: 60vh; }
-      .gutter { display: none; }
+      z-index: 100;
+      background: white;
+      border: 1px solid var(--primary);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 14px;
+      font-family: var(--font-ui);
+      min-width: 150px;
     }
   </style>
 </head>
@@ -219,7 +42,6 @@
 
   <header>
     <div class="brand">
-      <!-- Simple Mermaid Logo Icon -->
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"></circle>
         <path d="M8 12h8m-4-4v8"></path>
@@ -227,12 +49,12 @@
       <span>Mermaid Share Lite</span>
     </div>
     <div class="actions">
-      <button id="btnCopy" class="primary" title="Save state to URL and copy">
+      <button id="btnCopy" class="btn btn-primary" title="Save state to URL and copy">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
         Share Link
       </button>
-      <button id="btnDownloadSVG" title="Download SVG">SVG</button>
-      <button id="btnDownloadPNG" title="Download PNG">PNG</button>
+      <button id="btnDownloadSVG" class="btn btn-outline" title="Download SVG">SVG</button>
+      <button id="btnDownloadPNG" class="btn btn-outline" title="Download PNG">PNG</button>
     </div>
   </header>
 
@@ -240,15 +62,45 @@
     <!-- Left: Editor -->
     <div class="editor-panel">
       <div class="toolbar">
-        <select id="theme">
+        <select id="template" style="width: 140px;">
+          <option value="" disabled selected>Templates...</option>
+          <option value="flowchart">Flowchart</option>
+          <option value="sequence">Sequence</option>
+          <option value="class">Class</option>
+          <option value="state">State</option>
+          <option value="er">ER Diagram</option>
+          <option value="gantt">Gantt</option>
+          <option value="pie">Pie Chart</option>
+          <option value="git">Git Graph</option>
+          <option value="mindmap">Mindmap</option>
+        </select>
+        <select id="theme" style="flex: 1;">
           <option value="default">Theme: Default</option>
           <option value="dark">Theme: Dark</option>
           <option value="forest">Theme: Forest</option>
           <option value="neutral">Theme: Neutral</option>
           <option value="base">Theme: Base</option>
         </select>
-        <button id="btnReset" title="Reset to default example">Reset</button>
+        <button id="btnReset" class="btn btn-outline btn-icon" title="Reset">
+           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        </button>
       </div>
+
+      <!-- Quick Actions / Snippets -->
+      <div class="quick-actions" id="snippetBar">
+        <button class="btn-snippet" data-ins="[Label]">[] Box</button>
+        <button class="btn-snippet" data-ins="(Label)">() Round</button>
+        <button class="btn-snippet" data-ins="{Label}">{} Decision</button>
+        <button class="btn-snippet" data-ins="((Label))">(()) Circle</button>
+        <div style="width:1px; background:#d1d5db; margin:0 4px;"></div>
+        <button class="btn-snippet" data-ins=" --> ">&rarr; Arrow</button>
+        <button class="btn-snippet" data-ins=" -.-> ">&#x21E2; Dotted</button>
+        <button class="btn-snippet" data-ins=" ==> ">&rArr; Thick</button>
+        <div style="width:1px; background:#d1d5db; margin:0 4px;"></div>
+        <button class="btn-snippet" data-ins="subgraph Title\n\nend">Subgraph</button>
+        <button class="btn-snippet" data-ins="Note right of Node: Text">Note</button>
+      </div>
+
       <div class="editor-wrapper">
         <textarea id="code" spellcheck="false" placeholder="Type Mermaid code here..."></textarea>
       </div>
@@ -265,258 +117,17 @@
   </main>
 
   <div id="toast" class="toast"></div>
+  <input type="text" id="inline-editor" placeholder="Edit text..." />
 
-  <!-- Modules -->
-  <script type="module">
-    import "./lib/mermaid.min.js";
-    import pako from "./lib/pako.esm.mjs";
+  <!-- CodeMirror Libs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
 
-    const mermaid = window.mermaid;
+  <!-- Pan Zoom Lib -->
+  <script src="js/svg-pan-zoom.min.js"></script>
 
-    // --- DOM Elements ---
-    const $code = document.getElementById("code");
-    const $preview = document.getElementById("preview");
-    const $err = document.getElementById("error-container");
-    const $theme = document.getElementById("theme");
-    const $toast = document.getElementById("toast");
-
-    const DEFAULT_CODE = `flowchart TD
-  A[Start] --> B{Is it working?}
-  B -- Yes --> C[Great!]
-  B -- No --> D[Debug]
-  D --> B`;
-
-    // --- Utils: Base64URL & Compression ---
-    function u8ToB64Url(u8) {
-      let bin = "";
-      for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
-      return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-    }
-
-    function b64UrlToU8(b64url) {
-      const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((b64url.length + 3) % 4);
-      const bin = atob(b64);
-      const u8 = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
-      return u8;
-    }
-
-    function encodeToHash(code, theme) {
-      const payload = { code, mermaid: { theme } };
-      const json = JSON.stringify(payload);
-      const compressed = pako.deflate(json, { level: 9 });
-      return `#pako:${u8ToB64Url(compressed)}`;
-    }
-
-    function decodeFromHash(hash) {
-      if (!hash?.startsWith("#pako:")) return null;
-      try {
-        const b64url = hash.slice("#pako:".length);
-        const u8 = b64UrlToU8(b64url);
-        const json = new TextDecoder().decode(pako.inflate(u8));
-        const payload = JSON.parse(json);
-        return {
-          code: typeof payload.code === "string" ? payload.code : "",
-          theme: payload?.mermaid?.theme || "default",
-        };
-      } catch (e) {
-        console.error("Decode failed", e);
-        return null;
-      }
-    }
-
-    function showToast(msg) {
-      $toast.textContent = msg;
-      $toast.classList.add("show");
-      setTimeout(() => $toast.classList.remove("show"), 2500);
-    }
-
-    // --- Rendering ---
-    let currentTheme = "default";
-
-    async function renderNow() {
-      const code = $code.value.trim();
-      if (!code) {
-        $preview.innerHTML = "";
-        return;
-      }
-
-      // Re-init if theme changed (Mermaid requirement to apply theme correctly)
-      if ($theme.value !== currentTheme) {
-        currentTheme = $theme.value;
-        mermaid.initialize({ startOnLoad: false, theme: currentTheme, securityLevel: "strict" });
-      } else {
-        // Ensure init is called at least once even if theme didn't change
-        mermaid.initialize({ startOnLoad: false, theme: currentTheme, securityLevel: "strict" });
-      }
-
-      try {
-        // 1. Syntax Check
-        await mermaid.parse(code);
-        
-        // 2. Clear Errors
-        $err.textContent = "";
-        $err.classList.remove("active");
-
-        // 3. Render
-        const id = "mermaid-" + Math.random().toString(36).slice(2);
-        const { svg } = await mermaid.render(id, code);
-        $preview.innerHTML = svg;
-      } catch (e) {
-        // Keep previous preview if possible, just show error
-        $err.textContent = `Syntax Error:\n${e.message}`;
-        $err.classList.add("active");
-      }
-    }
-
-    // --- Event Listeners ---
-    
-    // 1. Live Preview with Debounce
-    let debounceTimer = null;
-    $code.addEventListener("input", () => {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(renderNow, 300);
-    });
-
-    // 2. Tab Key Support (UX Improvement)
-    $code.addEventListener("keydown", (e) => {
-      if (e.key === "Tab") {
-        e.preventDefault();
-        const start = $code.selectionStart;
-        const end = $code.selectionEnd;
-        // Insert 2 spaces
-        $code.value = $code.value.substring(0, start) + "  " + $code.value.substring(end);
-        $code.selectionStart = $code.selectionEnd = start + 2;
-        // Trigger render manually since 'input' event doesn't fire on programmatic change
-        renderNow(); 
-      }
-    });
-
-    // 3. Theme Change
-    $theme.addEventListener("change", renderNow);
-
-    // 4. Share/Copy Link
-    document.getElementById("btnCopy").addEventListener("click", async () => {
-      const hash = encodeToHash($code.value, $theme.value);
-      const url = location.origin + location.pathname + hash;
-      try {
-        await navigator.clipboard.writeText(url);
-        history.replaceState(null, "", hash); // Update URL bar too
-        showToast("Link copied to clipboard!");
-      } catch (err) {
-        showToast("Failed to copy link.");
-      }
-    });
-
-    // 5. Reset
-    document.getElementById("btnReset").addEventListener("click", () => {
-      if(confirm("Reset to default?")) {
-        history.replaceState(null, "", location.pathname);
-        $code.value = DEFAULT_CODE;
-        $theme.value = "default";
-        renderNow();
-      }
-    });
-
-    // 6. Download SVG
-    document.getElementById("btnDownloadSVG").addEventListener("click", () => {
-      const svg = $preview.querySelector("svg");
-      if (!svg) return showToast("Nothing to download");
-      
-      const svgData = new XMLSerializer().serializeToString(svg);
-      const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "mermaid-diagram.svg";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    });
-
-    // 7. Download PNG
-    document.getElementById("btnDownloadPNG").addEventListener("click", () => {
-      const svg = $preview.querySelector("svg");
-      if (!svg) return showToast("Nothing to download");
-
-      const svgData = new XMLSerializer().serializeToString(svg);
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      const img = new Image();
-
-      // Get dimensions from SVG
-      const bbox = svg.getBoundingClientRect();
-      // Scale up for better resolution (2x)
-      const scale = 2;
-      canvas.width = bbox.width * scale;
-      canvas.height = bbox.height * scale;
-
-      img.onload = () => {
-        ctx.scale(scale, scale);
-        // Fill white background (transparent by default)
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-        
-        const a = document.createElement("a");
-        a.download = "mermaid-diagram.png";
-        a.href = canvas.toDataURL("image/png");
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      };
-
-      img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
-    });
-
-    // --- Init ---
-    const decoded = decodeFromHash(location.hash);
-    if (decoded) {
-      $code.value = decoded.code || DEFAULT_CODE;
-      $theme.value = decoded.theme || "default";
-    } else {
-      $code.value = DEFAULT_CODE;
-    }
-    
-    // Initial Render
-    renderNow();
-
-    // --- Resizer Logic ---
-    const $gutter = document.getElementById("gutter");
-    const $editorPanel = document.querySelector(".editor-panel");
-    let isDragging = false;
-
-    $gutter.addEventListener("mousedown", (e) => {
-      isDragging = true;
-      $gutter.classList.add("dragging");
-      document.body.style.cursor = "col-resize";
-      e.preventDefault(); // Prevent text selection start
-    });
-
-    document.addEventListener("mousemove", (e) => {
-      if (!isDragging) return;
-      
-      // Calculate new width
-      // Since editor is on the left, clientX is roughly the width
-      // We limit min/max for usability
-      const minWidth = 250;
-      const maxWidth = window.innerWidth - 300; // Leave space for preview
-      
-      let newWidth = e.clientX;
-      if (newWidth < minWidth) newWidth = minWidth;
-      if (newWidth > maxWidth) newWidth = maxWidth;
-      
-      $editorPanel.style.width = `${newWidth}px`;
-    });
-
-    document.addEventListener("mouseup", () => {
-      if (isDragging) {
-        isDragging = false;
-        $gutter.classList.remove("dragging");
-        document.body.style.cursor = "";
-      }
-    });
-
-  </script>
+  <!-- App Script -->
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
