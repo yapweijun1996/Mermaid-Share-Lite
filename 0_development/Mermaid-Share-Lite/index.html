@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mermaid Share Lite</title>
+  <style>
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
+    .wrap{display:grid;grid-template-columns:420px 1fr;height:100vh;}
+    .left{border-right:1px solid #e5e7eb;padding:12px;display:flex;flex-direction:column;gap:10px;}
+    textarea{flex:1;width:100%;resize:none;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;line-height:1.4;padding:10px;border:1px solid #d1d5db;border-radius:8px;}
+    .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    button,select{padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer}
+    button:hover{background:#f9fafb}
+    .right{padding:12px;overflow:auto;}
+    .error{color:#b91c1c;font-size:12px;white-space:pre-wrap}
+    .hint{color:#6b7280;font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="left">
+      <div class="bar">
+        <button id="btnRender">Render</button>
+        <button id="btnCopy">Copy Share Link</button>
+        <button id="btnReset">Reset</button>
+        <select id="theme">
+          <option value="default">theme: default</option>
+          <option value="dark">theme: dark</option>
+          <option value="forest">theme: forest</option>
+          <option value="neutral">theme: neutral</option>
+        </select>
+        <span class="hint">链接用 #pako:... 存内容</span>
+      </div>
+
+      <textarea id="code"></textarea>
+      <div id="err" class="error"></div>
+    </div>
+
+    <div class="right">
+      <div id="preview"></div>
+    </div>
+  </div>
+
+  <!-- Mermaid (ESM) -->
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    import pako from "https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.esm.mjs";
+
+    const $code = document.getElementById("code");
+    const $preview = document.getElementById("preview");
+    const $err = document.getElementById("err");
+    const $theme = document.getElementById("theme");
+
+    const DEFAULT_CODE = `flowchart TD
+  A[Paste your Mermaid here] --> B[Click Copy Share Link]
+`;
+
+    // --- base64url helpers ---
+    function u8ToB64Url(u8) {
+      let bin = "";
+      for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+      const b64 = btoa(bin);
+      return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    }
+    function b64UrlToU8(b64url) {
+      const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((b64url.length + 3) % 4);
+      const bin = atob(b64);
+      const u8 = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      return u8;
+    }
+
+    // --- encode/decode (#pako:) ---
+    function encodeToHash(code, theme) {
+      const payload = { code, mermaid: { theme } };
+      const json = JSON.stringify(payload);
+      const compressed = pako.deflate(json, { level: 9 }); // 关键：deflate（不是 deflateRaw）
+      return `#pako:${u8ToB64Url(compressed)}`;
+    }
+    function decodeFromHash(hash) {
+      if (!hash?.startsWith("#pako:")) return null;
+      const b64url = hash.slice("#pako:".length);
+      const u8 = b64UrlToU8(b64url);
+      const json = new TextDecoder().decode(pako.inflate(u8));
+      const payload = JSON.parse(json);
+      return {
+        code: typeof payload.code === "string" ? payload.code : "",
+        theme: payload?.mermaid?.theme || "default",
+      };
+    }
+
+    // --- mermaid render ---
+    function initMermaid(theme) {
+      mermaid.initialize({
+        startOnLoad: false,
+        theme,
+        securityLevel: "strict" // 尽量安全
+      });
+    }
+
+    async function renderNow() {
+      $err.textContent = "";
+      const code = $code.value.trim() || DEFAULT_CODE;
+      const theme = $theme.value;
+
+      initMermaid(theme);
+
+      try {
+        await mermaid.parse(code); // 先校验语法
+        const id = "m_" + Math.random().toString(36).slice(2);
+        const { svg } = await mermaid.render(id, code);
+        $preview.innerHTML = svg;
+      } catch (e) {
+        $preview.innerHTML = "";
+        $err.textContent = String(e?.message || e);
+      }
+    }
+
+    // --- events ---
+    document.getElementById("btnRender").addEventListener("click", renderNow);
+
+    // 输入时做轻量 debounce 预览
+    let t = null;
+    $code.addEventListener("input", () => {
+      clearTimeout(t);
+      t = setTimeout(renderNow, 250);
+    });
+
+    // 复制分享链接
+    document.getElementById("btnCopy").addEventListener("click", async () => {
+      const hash = encodeToHash($code.value, $theme.value);
+      const url = location.origin + location.pathname + hash;
+      await navigator.clipboard.writeText(url);
+    });
+
+    document.getElementById("btnReset").addEventListener("click", () => {
+      history.replaceState(null, "", location.pathname);
+      $code.value = DEFAULT_CODE;
+      $theme.value = "default";
+      renderNow();
+    });
+
+    $theme.addEventListener("change", renderNow);
+
+    // --- boot from URL hash ---
+    const decoded = decodeFromHash(location.hash);
+    if (decoded) {
+      $code.value = decoded.code || DEFAULT_CODE;
+      $theme.value = decoded.theme || "default";
+    } else {
+      $code.value = DEFAULT_CODE;
+    }
+    renderNow();
+  </script>
+</body>
+</html>
