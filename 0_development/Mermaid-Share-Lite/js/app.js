@@ -599,3 +599,14 @@ document.addEventListener("fullscreenchange", () => {
     }, 100);
   }
 });
+
+// --- Laser Pointer Logic ---
+const $laser = document.getElementById("laser-pointer");
+
+document.addEventListener("mousemove", (e) => {
+  // Only update if in presentation mode (optimization)
+  if (document.body.classList.contains("presentation-mode")) {
+    $laser.style.top = `${e.clientY}px`;
+    $laser.style.left = `${e.clientX}px`;
+  }
+});

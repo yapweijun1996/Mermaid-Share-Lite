@@ -3,26 +3,32 @@
   --bg-app: #f3f4f6;
   --bg-panel: #ffffff;
   --border: #e5e7eb;
-  
-  --primary: #4f46e5;       /* Indigo-600 */
-  --primary-hover: #4338ca; /* Indigo-700 */
+
+  --primary: #4f46e5;
+  /* Indigo-600 */
+  --primary-hover: #4338ca;
+  /* Indigo-700 */
   --primary-fg: #ffffff;
-  
-  --text-main: #111827;     /* Gray-900 */
-  --text-muted: #6b7280;    /* Gray-500 */
-  
+
+  --text-main: #111827;
+  /* Gray-900 */
+  --text-muted: #6b7280;
+  /* Gray-500 */
+
   --danger: #ef4444;
   --danger-bg: #fef2f2;
   --danger-border: #fecaca;
 
   --font-ui: "Inter", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
-  
+
   --header-height: 56px;
   --toolbar-height: 48px;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
@@ -49,6 +55,7 @@ header {
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   z-index: 20;
 }
+
 .brand {
   font-weight: 600;
   font-size: 1rem;
@@ -57,9 +64,18 @@ header {
   gap: 10px;
   color: var(--text-main);
 }
-.brand svg { width: 20px; height: 20px; color: var(--primary); }
 
-.actions { display: flex; gap: 8px; align-items: center; }
+.brand svg {
+  width: 20px;
+  height: 20px;
+  color: var(--primary);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 
 /* --- Layout --- */
 main {
@@ -67,11 +83,13 @@ main {
   display: flex;
   overflow: hidden;
 }
+
 .panel {
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
+
 .editor-panel {
   width: 450px;
   background: var(--bg-panel);
@@ -80,6 +98,7 @@ main {
   flex-direction: column;
   border-right: 1px solid var(--border);
 }
+
 .preview-panel {
   flex: 1;
   background: #ffffff;
@@ -103,11 +122,15 @@ main {
   justify-content: center;
   transition: background 0.2s;
   z-index: 10;
-  margin-left: -1px; /* Overlap border */
+  margin-left: -1px;
+  /* Overlap border */
 }
-.gutter:hover, .gutter.dragging {
+
+.gutter:hover,
+.gutter.dragging {
   background: #d1d5db;
 }
+
 /* Grip handle visual */
 .gutter::after {
   content: "";
@@ -134,8 +157,14 @@ main {
   color: var(--text-main);
   height: 32px;
 }
-.btn:hover { background: #f3f4f6; }
-.btn:active { transform: translateY(1px); }
+
+.btn:hover {
+  background: #f3f4f6;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
 
 .btn-primary {
   background: var(--primary);
@@ -143,20 +172,32 @@ main {
   border: 1px solid transparent;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
-.btn-primary:hover { background: var(--primary-hover); color: white; }
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+  color: white;
+}
 
 .btn-outline {
   border: 1px solid var(--border);
   background: white;
 }
-.btn-outline:hover { border-color: #d1d5db; background: #f9fafb; }
+
+.btn-outline:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
 
 .btn-icon {
   padding: 6px;
   width: 32px;
   color: var(--text-muted);
 }
-.btn-icon:hover { color: var(--text-main); background: #f3f4f6; }
+
+.btn-icon:hover {
+  color: var(--text-main);
+  background: #f3f4f6;
+}
 
 select {
   padding: 0 30px 0 10px;
@@ -175,7 +216,10 @@ select {
   background-position: right 8px center;
   background-size: 14px;
 }
-select:hover { border-color: #d1d5db; }
+
+select:hover {
+  border-color: #d1d5db;
+}
 
 /* --- Toolbar --- */
 .toolbar {
@@ -200,10 +244,13 @@ select:hover { border-color: #d1d5db; }
   overflow-x: auto;
   flex-shrink: 0;
   /* Hide scrollbar */
-  scrollbar-width: none; 
+  scrollbar-width: none;
   -ms-overflow-style: none;
 }
-.quick-actions::-webkit-scrollbar { display: none; }
+
+.quick-actions::-webkit-scrollbar {
+  display: none;
+}
 
 .btn-snippet {
   padding: 4px 8px;
@@ -219,11 +266,13 @@ select:hover { border-color: #d1d5db; }
   align-items: center;
   transition: all 0.1s;
 }
+
 .btn-snippet:hover {
   background: #eff6ff;
   border-color: var(--primary);
   color: var(--primary);
 }
+
 .btn-snippet code {
   font-size: 1.1em;
   margin-right: 4px;
@@ -236,6 +285,7 @@ select:hover { border-color: #d1d5db; }
   position: relative;
   background: #ffffff;
 }
+
 textarea {
   width: 100%;
   height: 100%;
@@ -249,33 +299,48 @@ textarea {
   background: transparent;
   color: var(--text-main);
 }
-textarea::placeholder { color: #9ca3af; }
+
+textarea::placeholder {
+  color: #9ca3af;
+}
 
 /* --- Preview Area --- */
 #preview {
   width: 100%;
   height: 100%;
-  overflow: hidden; /* Hide scrollbars, let svg-pan-zoom handle it */
+  overflow: hidden;
+  /* Hide scrollbars, let svg-pan-zoom handle it */
   position: relative;
   background: #ffffff;
   /* Keep background pattern */
   background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
   background-size: 20px 20px;
 }
+
 /* Ensure SVG takes full space for Pan-Zoom */
 #preview svg {
   width: 100%;
   height: 100%;
-  display: block; /* Remove inline-block spacing */
+  display: block;
+  /* Remove inline-block spacing */
 }
 
 /* Interactive Preview Hints */
-#preview svg { cursor: default; }
-#preview .node, #preview .actor, #preview .task, #preview .cluster, #preview .label {
-  cursor: pointer; 
+#preview svg {
+  cursor: default;
+}
+
+#preview .node,
+#preview .actor,
+#preview .task,
+#preview .cluster,
+#preview .label {
+  cursor: pointer;
   transition: opacity 0.2s;
 }
-#preview .node:hover, #preview .actor:hover {
+
+#preview .node:hover,
+#preview .actor:hover {
   opacity: 0.8;
 }
 
@@ -292,7 +357,10 @@ textarea::placeholder { color: #9ca3af; }
   max-height: 150px;
   overflow-y: auto;
 }
-#error-container.active { display: block; }
+
+#error-container.active {
+  display: block;
+}
 
 /* --- Toast --- */
 .toast {
@@ -312,28 +380,55 @@ textarea::placeholder { color: #9ca3af; }
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   pointer-events: none;
 }
-.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
 
 /* --- Mobile --- */
 @media (max-width: 768px) {
-  header { padding: 0 12px; }
-  .brand span { display: none; }
-  main { flex-direction: column; }
-  .editor-panel { width: 100% !important; height: 45vh; border-right: none; border-bottom: 1px solid var(--border); }
-  .preview-panel { height: 55vh; }
-  .gutter { display: none; }
+  header {
+    padding: 0 12px;
+  }
+
+  .brand span {
+    display: none;
+  }
+
+  main {
+    flex-direction: column;
+  }
+
+  .editor-panel {
+    width: 100% !important;
+    height: 45vh;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .preview-panel {
+    height: 55vh;
+  }
+
+  .gutter {
+    display: none;
+  }
 }
 
 /* --- Presentation Mode --- */
 body.presentation-mode header {
   display: none !important;
 }
+
 body.presentation-mode .editor-panel {
   display: none !important;
 }
+
 body.presentation-mode .gutter {
   display: none !important;
 }
+
 body.presentation-mode .preview-panel {
   position: fixed;
   top: 0;
@@ -345,6 +440,47 @@ body.presentation-mode .preview-panel {
   margin: 0;
   border: none;
 }
+
 body.presentation-mode #btnExitPresent {
   display: flex !important;
+}
+
+/* Hide default cursor in presentation mode */
+body.presentation-mode {
+  cursor: none !important;
+}
+
+/* Also hide cursor on interactive elements to ensure laser is dominant */
+body.presentation-mode * {
+  cursor: none !important;
+}
+
+/* Except the exit button, so user knows it's clickable (optional, but keeping cursor hidden maintains immersion if laser is tracking) */
+body.presentation-mode #btnExitPresent {
+  cursor: none !important;
+  /* Laser acts as cursor */
+}
+
+/* Laser Pointer */
+#laser-pointer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  background: rgba(255, 0, 0, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  pointer-events: none;
+  /* Let clicks pass through */
+  z-index: 10000;
+  transform: translate(-50%, -50%);
+  display: none;
+  box-shadow: 0 0 10px 2px rgba(255, 0, 0, 0.5);
+  transition: transform 0.05s ease-out;
+  /* Slight lag for smoothness */
+}
+
+body.presentation-mode #laser-pointer {
+  display: block;
 }
