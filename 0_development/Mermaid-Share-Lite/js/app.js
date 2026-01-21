@@ -147,10 +147,11 @@ function showToast(msg) {
 
 // --- Auto-fix Node Labels (自动修复节点标签) ---
 /**
- * 自动给含有特殊符号的 flowchart 节点标签加双引号
- * 例如: A[text (note)] -> A["text (note)"]
+ * 自动给含有特殊符号的 flowchart 节点标签和边标签加双引号
+ * 节点: A[text (note)] -> A["text (note)"]
+ * 边: A -->|label (note)| B -> A -->|"label (note)"| B
  * 
- * 策略：逐行扫描，找到节点定义，用括号配对算法提取标签
+ * 策略：逐行扫描，找到节点定义和边标签，用括号配对算法提取标签
  */
 function autoFixNodeLabels(code) {
   // 只处理 flowchart 类型
@@ -161,12 +162,11 @@ function autoFixNodeLabels(code) {
     // 跳过空行和注释
     if (!line.trim() || line.trim().startsWith('%%')) return line;
 
-    // 匹配节点定义的开始：NodeID[ 或 NodeID( 等
-    const nodeStartPattern = /(\w+)([\[\(\{])/g;
     let result = line;
-    let match;
 
-    // 重置正则状态
+    // === 1. 处理节点标签 NodeID[label] ===
+    const nodeStartPattern = /(\w+)([\[\(\{])/g;
+    let match;
     nodeStartPattern.lastIndex = 0;
 
     while ((match = nodeStartPattern.exec(line)) !== null) {
@@ -202,7 +202,6 @@ function autoFixNodeLabels(code) {
       }
 
       // 检查是否含有特殊符号（括号）
-      // 注意：<br/> 这种 HTML 标签不算，只检查 Mermaid 语法符号
       const hasParentheses = /[\(\)]/.test(label);
 
       if (hasParentheses) {
@@ -215,11 +214,81 @@ function autoFixNodeLabels(code) {
       }
     }
 
+    // === 2. 处理边标签 -->|label| 或 -.->|label| 等 ===
+    // 边语法：-->, -.>, ==>, --xxx--> 等，后跟 |label|
+    const edgeLabelPattern = /([-=\.]+>?\|)([^|]+)(\|)/g;
+    edgeLabelPattern.lastIndex = 0;
+
+    while ((match = edgeLabelPattern.exec(result)) !== null) {
+      const prefix = match[1];  // 例如 -->|
+      const label = match[2];
+      const suffix = match[3];  // |
+
+      // 如果已经用双引号包裹，跳过
+      if (label.trim().startsWith('"') && label.trim().endsWith('"')) {
+        continue;
+      }
+
+      // 检查是否含有特殊符号（括号）
+      const hasParentheses = /[\(\)]/.test(label);
+
+      if (hasParentheses) {
+        const originalEdgeLabel = match[0];
+        const fixedEdgeLabel = `${prefix}"${label}"${suffix}`;
+        result = result.replace(originalEdgeLabel, fixedEdgeLabel);
+      }
+    }
+
     return result;
   });
 
   return fixedLines.join('\n');
 }
+
+/**** AMENDMENT [start] "动态箭头 Hover 效果函数" ****/
+/**
+ * 为所有箭头/边添加动态 hover 效果（仅在演示模式下生效）
+ * @param {SVGElement} svgElement - 渲染后的 SVG 根元素
+ */
+function addArrowHoverEffects(svgElement) {
+  // 选择所有可能的箭头/边路径
+  const edgeSelectors = [
+    '.edgePath path',
+    '.flowchart-link',
+    'path.transition', // State diagrams
+    'line.messageLine', // Sequence diagrams
+    '.relation' // ER diagrams
+  ];
+
+  edgeSelectors.forEach(selector => {
+    const edges = svgElement.querySelectorAll(selector);
+    edges.forEach(edge => {
+      // 保存原始样式
+      const originalStroke = edge.getAttribute('stroke') || edge.style.stroke;
+      const originalStrokeWidth = edge.getAttribute('stroke-width') || edge.style.strokeWidth;
+      const originalOpacity = edge.getAttribute('opacity') || edge.style.opacity || '1';
+
+      edge.addEventListener('mouseenter', () => {
+        // 只在演示模式下生效
+        if (document.body.classList.contains('presentation-mode')) {
+          edge.setAttribute('stroke', '#ef4444'); // var(--danger) 的实际值
+          edge.setAttribute('stroke-width', '5');
+          edge.setAttribute('opacity', '1');
+          edge.style.filter = 'drop-shadow(0 0 4px rgba(239, 68, 68, 0.8))';
+        }
+      });
+
+      edge.addEventListener('mouseleave', () => {
+        // 恢复原始样式
+        if (originalStroke) edge.setAttribute('stroke', originalStroke);
+        if (originalStrokeWidth) edge.setAttribute('stroke-width', originalStrokeWidth);
+        if (originalOpacity) edge.setAttribute('opacity', originalOpacity);
+        edge.style.filter = '';
+      });
+    });
+  });
+}
+/**** AMENDMENT [end  ] "动态箭头 Hover 效果函数" ****/
 
 // --- Rendering ---
 let currentTheme = "default";
@@ -255,6 +324,7 @@ async function renderNow() {
   code = autoFixNodeLabels(code);
   /**** AMENDMENT [end  ] "自动修复 Mermaid 节点标签语法" ****/
 
+  /**** AMENDMENT [start] "添加箭头 hover 效果的 JS 控制" ****/
   try {
     await mermaid.parse(code);
     $err.textContent = "";
@@ -288,7 +358,12 @@ async function renderNow() {
       panZoomInstance.resize();
       panZoomInstance.fit();
       panZoomInstance.center();
+
+      // 4. Add dynamic hover effects for arrows in Presentation Mode
+      // (CSS !important cannot override Mermaid's inline styles reliably)
+      addArrowHoverEffects(svgElement);
     }
+    /**** AMENDMENT [end  ] "添加箭头 hover 效果的 JS 控制" ****/
 
   } catch (e) {
     // Keep previous preview if possible, just show error

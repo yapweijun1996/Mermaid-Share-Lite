@@ -284,6 +284,8 @@ select:hover {
   flex: 1;
   position: relative;
   background: #ffffff;
+  overflow: auto;
+  /* 允许内容溢出时显示滚动条 */
 }
 
 textarea {
