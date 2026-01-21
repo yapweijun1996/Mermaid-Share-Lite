@@ -10,6 +10,7 @@
 - Do investigation before amendment.
 - Each files no more than 300 lines.
 - Each files must easy to understand and cheap to maintain.
+- Explain logic by diagram mermaid.
 
 
 

@@ -145,13 +145,89 @@ function showToast(msg) {
   setTimeout(() => $toast.classList.remove("show"), 2500);
 }
 
+// --- Auto-fix Node Labels (自动修复节点标签) ---
+/**
+ * 自动给含有特殊符号的 flowchart 节点标签加双引号
+ * 例如: A[text (note)] -> A["text (note)"]
+ * 
+ * 策略：逐行扫描，找到节点定义，用括号配对算法提取标签
+ */
+function autoFixNodeLabels(code) {
+  // 只处理 flowchart 类型
+  if (!code.trim().startsWith("flowchart")) return code;
+
+  const lines = code.split('\n');
+  const fixedLines = lines.map(line => {
+    // 跳过空行和注释
+    if (!line.trim() || line.trim().startsWith('%%')) return line;
+
+    // 匹配节点定义的开始：NodeID[ 或 NodeID( 等
+    const nodeStartPattern = /(\w+)([\[\(\{])/g;
+    let result = line;
+    let match;
+
+    // 重置正则状态
+    nodeStartPattern.lastIndex = 0;
+
+    while ((match = nodeStartPattern.exec(line)) !== null) {
+      const nodeId = match[1];
+      const openBracket = match[2];
+      const startPos = match.index + match[0].length;
+
+      // 确定对应的闭合括号
+      const closeBracket = { '[': ']', '(': ')', '{': '}' }[openBracket];
+
+      // 从开始位置找到配对的闭合括号
+      let depth = 1;
+      let endPos = -1;
+
+      for (let i = startPos; i < line.length; i++) {
+        if (line[i] === openBracket) depth++;
+        if (line[i] === closeBracket) {
+          depth--;
+          if (depth === 0) {
+            endPos = i;
+            break;
+          }
+        }
+      }
+
+      if (endPos === -1) continue; // 未找到闭合括号，跳过
+
+      const label = line.substring(startPos, endPos);
+
+      // 如果已经用双引号包裹，跳过
+      if (label.trim().startsWith('"') && label.trim().endsWith('"')) {
+        continue;
+      }
+
+      // 检查是否含有特殊符号（括号）
+      // 注意：<br/> 这种 HTML 标签不算，只检查 Mermaid 语法符号
+      const hasParentheses = /[\(\)]/.test(label);
+
+      if (hasParentheses) {
+        // 构建修复后的节点定义
+        const originalNode = line.substring(match.index, endPos + 1);
+        const fixedNode = `${nodeId}${openBracket}"${label}"${closeBracket}`;
+
+        // 替换（只替换第一个匹配，避免重复）
+        result = result.replace(originalNode, fixedNode);
+      }
+    }
+
+    return result;
+  });
+
+  return fixedLines.join('\n');
+}
+
 // --- Rendering ---
 let currentTheme = "default";
 let panZoomInstance = null; // Store the instance
 
 async function renderNow() {
-  const code = editor.getValue().trim(); // Use CodeMirror value
-  
+  let code = editor.getValue().trim(); // Use CodeMirror value
+
   // Auto Save
   localStorage.setItem("mermaid-code", code);
   localStorage.setItem("mermaid-theme", $theme.value);
@@ -174,6 +250,11 @@ async function renderNow() {
     mermaid.initialize({ startOnLoad: false, theme: currentTheme, securityLevel: "strict" });
   }
 
+  /**** AMENDMENT [start] "自动修复 Mermaid 节点标签语法" ****/
+  // 预处理：自动给含特殊符号的节点加双引号
+  code = autoFixNodeLabels(code);
+  /**** AMENDMENT [end  ] "自动修复 Mermaid 节点标签语法" ****/
+
   try {
     await mermaid.parse(code);
     $err.textContent = "";
@@ -189,7 +270,7 @@ async function renderNow() {
       svgElement.removeAttribute("style");
       svgElement.setAttribute("width", "100%");
       svgElement.setAttribute("height", "100%");
-      
+
       // 2. Initialize library
       panZoomInstance = svgPanZoom(svgElement, {
         zoomEnabled: true,
@@ -200,9 +281,9 @@ async function renderNow() {
         maxZoom: 50, // Allow deeper zoom
         contain: true, // Keep it within bounds initially? No, let it flow.
         viewportSelector: null,
-        dblClickZoomEnabled: false 
+        dblClickZoomEnabled: false
       });
-      
+
       // 3. Force a resize update to sync
       panZoomInstance.resize();
       panZoomInstance.fit();
@@ -232,14 +313,14 @@ document.querySelectorAll(".btn-snippet").forEach(btn => {
   btn.addEventListener("click", () => {
     const ins = btn.dataset.ins;
     if (!ins) return;
-    
+
     // Insert at cursor
     const doc = editor.getDoc();
     const cursor = doc.getCursor();
     // Decode escaped newlines if any
     const textToInsert = ins.replace(/\\n/g, "\n");
     doc.replaceRange(textToInsert, cursor);
-    
+
     // Move focus back
     editor.focus();
   });
@@ -252,11 +333,11 @@ $template.addEventListener("change", () => {
     const currentCode = editor.getValue();
     const isDefault = Object.values(TEMPLATES).some(t => t.trim() === currentCode.trim());
     if (currentCode.trim() === "" || isDefault || confirm("Replace current code with template?")) {
-       editor.setValue(TEMPLATES[type]);
-       // renderNow trigger via change event is automatic? No, setValue triggers 'change'
+      editor.setValue(TEMPLATES[type]);
+      // renderNow trigger via change event is automatic? No, setValue triggers 'change'
     }
   }
-  $template.value = ""; 
+  $template.value = "";
 });
 
 // 4. Theme Change
@@ -278,7 +359,7 @@ document.getElementById("btnCopy").addEventListener("click", async () => {
 
 // 6. Reset
 document.getElementById("btnReset").addEventListener("click", () => {
-  if(confirm("Reset to default?")) {
+  if (confirm("Reset to default?")) {
     history.replaceState(null, "", location.pathname);
     editor.setValue(DEFAULT_CODE);
     $theme.value = "default";
@@ -334,10 +415,10 @@ $preview.addEventListener("click", (e) => {
 
   let textToFind = "";
   if (target.tagName === "tspan" || target.tagName === "text" || target.tagName === "p" || target.tagName === "div") {
-      textToFind = target.textContent.trim();
+    textToFind = target.textContent.trim();
   } else {
-      const nodeGroup = target.closest(".node, .actor, .label, .cluster, .task"); 
-      if (nodeGroup) textToFind = nodeGroup.textContent.trim();
+    const nodeGroup = target.closest(".node, .actor, .label, .cluster, .task");
+    if (nodeGroup) textToFind = nodeGroup.textContent.trim();
   }
 
   if (!textToFind) return;
@@ -367,10 +448,10 @@ $preview.addEventListener("dblclick", (e) => {
 
   let oldText = "";
   if (target.tagName === "tspan" || target.tagName === "text" || target.tagName === "p" || target.tagName === "div") {
-      oldText = target.textContent.trim();
+    oldText = target.textContent.trim();
   } else {
-      const nodeGroup = target.closest(".node, .actor, .label, .cluster, .task"); 
-      if (nodeGroup) oldText = nodeGroup.textContent.trim();
+    const nodeGroup = target.closest(".node, .actor, .label, .cluster, .task");
+    if (nodeGroup) oldText = nodeGroup.textContent.trim();
   }
 
   if (!oldText) return;
@@ -380,14 +461,14 @@ $preview.addEventListener("dblclick", (e) => {
   if (!cursor.findNext()) {
     return showToast("Could not locate text in code.");
   }
-  
+
   editingRange = { from: cursor.from(), to: cursor.to() };
   editingTargetText = oldText;
 
   // Position the inline editor over the clicked element
   // Need to account for pan/zoom transform if active
   const rect = target.getBoundingClientRect();
-  
+
   $inlineEditor.style.display = "block";
   $inlineEditor.style.left = `${rect.left + window.scrollX}px`;
   $inlineEditor.style.top = `${rect.top + window.scrollY}px`;
@@ -400,7 +481,7 @@ $preview.addEventListener("dblclick", (e) => {
 function commitInlineEdit() {
   const newText = $inlineEditor.value;
   $inlineEditor.style.display = "none";
-  
+
   if (newText && newText !== editingTargetText && editingRange) {
     editor.replaceRange(newText, editingRange.from, editingRange.to);
     showToast("Updated!");
@@ -456,13 +537,13 @@ $gutter.addEventListener("mousedown", (e) => {
   isDragging = true;
   $gutter.classList.add("dragging");
   document.body.style.cursor = "col-resize";
-  e.preventDefault(); 
+  e.preventDefault();
 });
 
 document.addEventListener("mousemove", (e) => {
   if (!isDragging) return;
   const minWidth = 250;
-  const maxWidth = window.innerWidth - 300; 
+  const maxWidth = window.innerWidth - 300;
   let newWidth = e.clientX;
   if (newWidth < minWidth) newWidth = minWidth;
   if (newWidth > maxWidth) newWidth = maxWidth;
