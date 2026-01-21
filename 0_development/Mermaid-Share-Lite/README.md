@@ -1,6 +1,11 @@
 # Mermaid Share Lite
 
-A lightweight, serverless, single-file editor for [Mermaid](https://mermaid.js.org/) diagrams.
+<!-- AMENDMENT [start] "Corrected architecture description" -->
+<!--A lightweight, serverless, single-file editor for [Mermaid](https://mermaid.js.org/) diagrams.-->
+<!-- AMENDMENT [end  ] "Corrected architecture description" -->
+<!-- AMENDMENT [start] "Corrected architecture description" -->
+A lightweight, serverless, client-side editor for [Mermaid](https://mermaid.js.org/) diagrams.
+<!-- AMENDMENT [end  ] "Corrected architecture description" -->
 
 It allows you to edit diagrams with real-time preview and generate **shareable URLs** that store the entire diagram state. No database or backend is required—everything is compressed and stored in the URL hash.
 
@@ -9,13 +14,23 @@ It allows you to edit diagrams with real-time preview and generate **shareable U
 - **Real-time Preview:** See your diagram update instantly as you type (with debounce).
 - **Serverless Sharing:** "Copy Share Link" generates a URL containing the compressed diagram code.
 - **Theme Support:** Switch between Default, Dark, Forest, and Neutral Mermaid themes.
-- **Lightweight:** Single `index.html` file (~5KB). Zero build steps. No `npm install` needed.
+<!-- AMENDMENT [start] "Updated file structure description" -->
+<!--- **Lightweight:** Single `index.html` file (~5KB). Zero build steps. No `npm install` needed.-->
+<!-- AMENDMENT [end  ] "Updated file structure description" -->
+<!-- AMENDMENT [start] "Updated file structure description" -->
+- **Lightweight:** Simple static structure (HTML + JS + CSS). Zero build steps. No `npm install` needed.
+<!-- AMENDMENT [end  ] "Updated file structure description" -->
 - **Secure:** Uses Mermaid's strict security level.
 
 ## 🚀 Quick Start
 
 ### Online
-Simply host the `index.html` file on any static hosting service (GitHub Pages, Vercel, Netlify).
+<!-- AMENDMENT [start] "Updated hosting instructions" -->
+<!--Simply host the `index.html` file on any static hosting service (GitHub Pages, Vercel, Netlify).-->
+<!-- AMENDMENT [end  ] "Updated hosting instructions" -->
+<!-- AMENDMENT [start] "Updated hosting instructions" -->
+Simply host this folder on any static hosting service (GitHub Pages, Vercel, Netlify).
+<!-- AMENDMENT [end  ] "Updated hosting instructions" -->
 
 ### Local
 1. Clone or download this repository.

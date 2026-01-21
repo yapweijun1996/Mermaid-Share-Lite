@@ -481,6 +481,47 @@ body.presentation-mode #btnExitPresent {
   /* Slight lag for smoothness */
 }
 
+/* AMENDMENT [start] "Enhanced Presentation Mode Hover Effects" */
 body.presentation-mode #laser-pointer {
   display: block;
 }
+
+/* 1. Node/Card Hover Effect */
+/* Glow and border highlight */
+body.presentation-mode #preview .node:hover,
+body.presentation-mode #preview .actor:hover,
+body.presentation-mode #preview .label:hover,
+body.presentation-mode #preview .task:hover {
+  filter: drop-shadow(0 0 15px rgba(79, 70, 229, 0.6));
+  /* Primary Glow */
+  opacity: 1;
+}
+
+body.presentation-mode #preview .node:hover rect,
+body.presentation-mode #preview .node:hover circle,
+body.presentation-mode #preview .node:hover polygon,
+body.presentation-mode #preview .actor:hover rect,
+body.presentation-mode #preview .actor:hover circle {
+  stroke: var(--primary) !important;
+  stroke-width: 4px !important;
+  transition: all 0.2s ease;
+}
+
+/* 2. Arrow/Edge Hover Effect */
+/* Thicken and color change */
+/* Need to be very specific to override inline styles */
+body.presentation-mode #preview .edgePath:hover path,
+body.presentation-mode #preview .flowchart-link:hover path,
+body.presentation-mode #preview .relationship:hover path,
+body.presentation-mode #preview .messageLine:hover {
+  stroke: var(--danger) !important;
+  stroke-width: 4px !important;
+  opacity: 1 !important;
+  filter: drop-shadow(0 0 2px var(--danger));
+  cursor: none !important;
+}
+
+/* Handle arrowheads separately if possible, though they are markers */
+/* Markers are hard to style via CSS as they are referenced <defs> */
+
+/* AMENDMENT [end  ] "Enhanced Presentation Mode Hover Effects" */
