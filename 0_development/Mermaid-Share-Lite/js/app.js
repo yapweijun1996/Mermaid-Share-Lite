@@ -557,3 +557,45 @@ document.addEventListener("mouseup", () => {
     document.body.style.cursor = "";
   }
 });
+
+// --- Presentation Mode ---
+const $btnPresent = document.getElementById("btnPresent");
+const $btnExitPresent = document.getElementById("btnExitPresent");
+
+function togglePresentationMode(active) {
+  if (active) {
+    document.body.classList.add("presentation-mode");
+    document.documentElement.requestFullscreen().catch(err => {
+      console.log("Error attempting to enable full-screen mode:", err.message);
+    });
+  } else {
+    document.body.classList.remove("presentation-mode");
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(err => console.log(err));
+    }
+  }
+  // Allow layout to settle then resize panZoom
+  setTimeout(() => {
+    if (panZoomInstance) {
+      panZoomInstance.resize();
+      panZoomInstance.fit();
+      panZoomInstance.center();
+    }
+  }, 100);
+}
+
+// Logic to show/hide exit button is handled by CSS, we just handle the click
+$btnPresent.addEventListener("click", () => togglePresentationMode(true));
+$btnExitPresent.addEventListener("click", () => togglePresentationMode(false));
+
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement) {
+    // User pressed Esc or exited some other way
+    document.body.classList.remove("presentation-mode");
+    setTimeout(() => {
+      if (panZoomInstance) {
+        panZoomInstance.resize();
+      }
+    }, 100);
+  }
+});

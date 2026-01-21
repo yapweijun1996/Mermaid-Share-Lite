@@ -323,3 +323,28 @@ textarea::placeholder { color: #9ca3af; }
   .preview-panel { height: 55vh; }
   .gutter { display: none; }
 }
+
+/* --- Presentation Mode --- */
+body.presentation-mode header {
+  display: none !important;
+}
+body.presentation-mode .editor-panel {
+  display: none !important;
+}
+body.presentation-mode .gutter {
+  display: none !important;
+}
+body.presentation-mode .preview-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9000;
+  background: white;
+  margin: 0;
+  border: none;
+}
+body.presentation-mode #btnExitPresent {
+  display: flex !important;
+}
