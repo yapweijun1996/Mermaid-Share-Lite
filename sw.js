@@ -17,8 +17,7 @@ const PRECACHE_URLS = [
   "./js/app.js",
   "./js/svg-pan-zoom.min.js",
   "./lib/pako.esm.mjs",
-  "./manifest.json",
-  "./icons/icon.svg"
+  "./manifest.json"
 ];
 
 // CDN resources — cached on first fetch (runtime cache)
