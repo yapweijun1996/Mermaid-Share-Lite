@@ -294,6 +294,26 @@ function addArrowHoverEffects(svgElement) {
 let currentTheme = "default";
 let panZoomInstance = null; // Store the instance
 
+function initPanZoom(svgElement) {
+  if (panZoomInstance) {
+    try { panZoomInstance.destroy(); } catch (_) {}
+    panZoomInstance = null;
+  }
+  panZoomInstance = svgPanZoom(svgElement, {
+    zoomEnabled: true,
+    controlIconsEnabled: true,
+    fit: true,
+    center: true,
+    minZoom: 0.1,
+    maxZoom: 50,
+    viewportSelector: null,
+    dblClickZoomEnabled: false
+  });
+  panZoomInstance.resize();
+  panZoomInstance.fit();
+  panZoomInstance.center();
+}
+
 async function renderNow() {
   let code = editor.getValue().trim(); // Use CodeMirror value
 
@@ -308,16 +328,12 @@ async function renderNow() {
 
   // Destroy old pan-zoom before re-rendering
   if (panZoomInstance) {
-    panZoomInstance.destroy();
+    try { panZoomInstance.destroy(); } catch (_) {}
     panZoomInstance = null;
   }
 
-  if ($theme.value !== currentTheme) {
-    currentTheme = $theme.value;
-    mermaid.initialize({ startOnLoad: false, theme: currentTheme, securityLevel: "strict" });
-  } else {
-    mermaid.initialize({ startOnLoad: false, theme: currentTheme, securityLevel: "strict" });
-  }
+  currentTheme = $theme.value;
+  mermaid.initialize({ startOnLoad: false, theme: currentTheme, securityLevel: "strict" });
 
   /**** AMENDMENT [start] "自动修复 Mermaid 节点标签语法" ****/
   // 预处理：自动给含特殊符号的节点加双引号
@@ -333,7 +349,7 @@ async function renderNow() {
     const { svg } = await mermaid.render(id, code);
     $preview.innerHTML = svg;
 
-    // Initialize Pan Zoom
+    // Initialize Pan Zoom (skip if preview is hidden on mobile)
     const svgElement = $preview.querySelector("svg");
     if (svgElement) {
       // 1. Reset Mermaid styles to allow full expansion
@@ -341,26 +357,13 @@ async function renderNow() {
       svgElement.setAttribute("width", "100%");
       svgElement.setAttribute("height", "100%");
 
-      // 2. Initialize library
-      panZoomInstance = svgPanZoom(svgElement, {
-        zoomEnabled: true,
-        controlIconsEnabled: true,
-        fit: true,
-        center: true,
-        minZoom: 0.1,
-        maxZoom: 50, // Allow deeper zoom
-        contain: true, // Keep it within bounds initially? No, let it flow.
-        viewportSelector: null,
-        dblClickZoomEnabled: false
-      });
+      // 2. Only init pan-zoom if the preview panel is visible
+      const previewVisible = $preview.offsetWidth > 0 && $preview.offsetHeight > 0;
+      if (previewVisible) {
+        initPanZoom(svgElement);
+      }
 
-      // 3. Force a resize update to sync
-      panZoomInstance.resize();
-      panZoomInstance.fit();
-      panZoomInstance.center();
-
-      // 4. Add dynamic hover effects for arrows in Presentation Mode
-      // (CSS !important cannot override Mermaid's inline styles reliably)
+      // 3. Add dynamic hover effects for arrows in Presentation Mode
       addArrowHoverEffects(svgElement);
     }
     /**** AMENDMENT [end  ] "添加箭头 hover 效果的 JS 控制" ****/
@@ -603,6 +606,55 @@ if (decoded) {
 // Let's force render
 renderNow();
 
+// --- Mobile Tab Switching ---
+const isMobile = () => window.innerWidth <= 768;
+
+function setMobileTab(tab) {
+  document.body.classList.remove("mobile-tab-code", "mobile-tab-preview");
+  document.body.classList.add(`mobile-tab-${tab}`);
+
+  document.querySelectorAll(".mobile-tab").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.tab === tab);
+  });
+
+  // Refresh CodeMirror when switching to code tab (fixes rendering)
+  if (tab === "code") {
+    setTimeout(() => editor.refresh(), 50);
+  }
+
+  // Init or refresh pan-zoom when switching to preview
+  if (tab === "preview") {
+    setTimeout(() => {
+      const svgElement = $preview.querySelector("svg");
+      if (svgElement) {
+        initPanZoom(svgElement);
+      }
+    }, 50);
+  }
+}
+
+// Initialize mobile state
+if (isMobile()) {
+  setMobileTab("code");
+}
+
+// Listen for tab clicks
+document.querySelectorAll(".mobile-tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    setMobileTab(btn.dataset.tab);
+  });
+});
+
+// Handle resize (switching between mobile/desktop)
+window.addEventListener("resize", () => {
+  if (!isMobile()) {
+    document.body.classList.remove("mobile-tab-code", "mobile-tab-preview");
+  } else if (!document.body.classList.contains("mobile-tab-code") &&
+             !document.body.classList.contains("mobile-tab-preview")) {
+    setMobileTab("code");
+  }
+});
+
 // --- Resizer Logic ---
 const $gutter = document.getElementById("gutter");
 const $editorPanel = document.querySelector(".editor-panel");
@@ -649,12 +701,11 @@ function togglePresentationMode(active) {
       document.exitFullscreen().catch(err => console.log(err));
     }
   }
-  // Allow layout to settle then resize panZoom
+  // Allow layout to settle then reinit panZoom
   setTimeout(() => {
-    if (panZoomInstance) {
-      panZoomInstance.resize();
-      panZoomInstance.fit();
-      panZoomInstance.center();
+    const svgElement = $preview.querySelector("svg");
+    if (svgElement) {
+      initPanZoom(svgElement);
     }
   }, 100);
 }
@@ -668,9 +719,8 @@ document.addEventListener("fullscreenchange", () => {
     // User pressed Esc or exited some other way
     document.body.classList.remove("presentation-mode");
     setTimeout(() => {
-      if (panZoomInstance) {
-        panZoomInstance.resize();
-      }
+      const svgElement = $preview.querySelector("svg");
+      if (svgElement) initPanZoom(svgElement);
     }, 100);
   }
 });
@@ -683,5 +733,457 @@ document.addEventListener("mousemove", (e) => {
   if (document.body.classList.contains("presentation-mode")) {
     $laser.style.top = `${e.clientY}px`;
     $laser.style.left = `${e.clientX}px`;
+  }
+});
+
+// ============================================================
+// Context Menu — Visual Node Editing (Flowchart)
+// ============================================================
+
+const $ctxMenu = document.getElementById("ctx-menu");
+const $ctxItems = $ctxMenu.querySelector(".ctx-menu-items");
+const $nodeDialog = document.getElementById("node-dialog");
+const $nodeDialogLabel = document.getElementById("node-dialog-label");
+const $nodeDialogOk = document.getElementById("node-dialog-ok");
+const $nodeDialogCancel = document.getElementById("node-dialog-cancel");
+
+// --- Helpers ---
+
+function isFlowchart() {
+  return editor.getValue().trim().startsWith("flowchart");
+}
+
+/** Walk up the DOM tree, crossing foreignObject boundaries, to find an ancestor matching selector */
+function closestSvgAncestor(el, selector) {
+  let current = el;
+  while (current && current !== document.body && current !== document) {
+    // Check if current element matches the selector
+    try {
+      if (current.matches && current.matches(selector)) return current;
+    } catch (_) {}
+    // Move up — if parent is foreignObject, jump to its SVG parent
+    const parent = current.parentElement || current.parentNode;
+    if (!parent) return null;
+    current = parent;
+  }
+  return null;
+}
+
+function getNodeIdFromElement(el) {
+  const nodeGroup = closestSvgAncestor(el, ".node");
+  if (!nodeGroup) return null;
+  const id = nodeGroup.id || "";
+  // Mermaid v11 format: "mermaid-{renderId}-flowchart-{nodeId}-{index}"
+  // or without trailing index: "mermaid-{renderId}-flowchart-{nodeId}"
+  const m = id.match(/flowchart-([A-Za-z_]\w*)(?:-\d+)?$/);
+  if (m) return m[1];
+  return null;
+}
+
+function getNodeLabelFromElement(el) {
+  const nodeGroup = closestSvgAncestor(el, ".node");
+  if (!nodeGroup) return "";
+  return nodeGroup.textContent.trim();
+}
+
+function isEdgeElement(el) {
+  return !!closestSvgAncestor(el, ".edgePath") || !!closestSvgAncestor(el, ".flowchart-link");
+}
+
+function getNextNodeId() {
+  const code = editor.getValue();
+  const ids = new Set();
+  const reserved = new Set(["flowchart", "subgraph", "end", "style", "class", "click", "linkStyle", "classDef", "direction"]);
+  let m;
+  const p1 = /\b([A-Za-z_]\w*)\s*[\[\(\{]/g;
+  while ((m = p1.exec(code)) !== null) {
+    if (!reserved.has(m[1])) ids.add(m[1]);
+  }
+  const p2 = /-->\s*([A-Za-z_]\w*)/g;
+  while ((m = p2.exec(code)) !== null) {
+    if (!reserved.has(m[1])) ids.add(m[1]);
+  }
+  for (let c = 65; c <= 90; c++) {
+    const letter = String.fromCharCode(c);
+    if (!ids.has(letter)) return letter;
+  }
+  let i = 1;
+  while (ids.has(`N${i}`)) i++;
+  return `N${i}`;
+}
+
+function shapeWrap(label, shape) {
+  const map = {
+    rect: ["[", "]"],
+    round: ["(", ")"],
+    diamond: ["{", "}"],
+    circle: ["((", "))"],
+    stadium: ["([", "])"]
+  };
+  const [open, close] = map[shape] || map.rect;
+  return `${open}${label}${close}`;
+}
+
+function detectNodeShape(nodeId) {
+  const code = editor.getValue();
+  const patterns = [
+    { shape: "circle", re: new RegExp(`\\b${nodeId}\\s*\\(\\(`) },
+    { shape: "stadium", re: new RegExp(`\\b${nodeId}\\s*\\(\\[`) },
+    { shape: "round", re: new RegExp(`\\b${nodeId}\\s*\\((?!\\()(?!\\[)`) },
+    { shape: "diamond", re: new RegExp(`\\b${nodeId}\\s*\\{`) },
+    { shape: "rect", re: new RegExp(`\\b${nodeId}\\s*\\[(?!\\[)`) },
+  ];
+  for (const { shape, re } of patterns) {
+    if (re.test(code)) return shape;
+  }
+  return "rect";
+}
+
+// --- Context Menu Show/Hide ---
+
+function showCtxMenu(x, y, items) {
+  $ctxItems.innerHTML = "";
+  items.forEach(item => {
+    if (item === "sep") {
+      const sep = document.createElement("div");
+      sep.className = "ctx-sep";
+      $ctxItems.appendChild(sep);
+      return;
+    }
+    if (item.label) {
+      const lbl = document.createElement("div");
+      lbl.className = "ctx-label";
+      lbl.textContent = item.label;
+      $ctxItems.appendChild(lbl);
+      return;
+    }
+    const btn = document.createElement("button");
+    btn.className = "ctx-item" + (item.danger ? " danger" : "");
+    btn.innerHTML = `${item.icon || ""}${item.text}`;
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      hideCtxMenu();
+      item.action();
+    });
+    $ctxItems.appendChild(btn);
+  });
+
+  $ctxMenu.style.display = "block";
+  $ctxMenu.style.left = `${x}px`;
+  $ctxMenu.style.top = `${y}px`;
+
+  requestAnimationFrame(() => {
+    const rect = $ctxMenu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) $ctxMenu.style.left = `${x - rect.width}px`;
+    if (rect.bottom > window.innerHeight) $ctxMenu.style.top = `${y - rect.height}px`;
+  });
+}
+
+function hideCtxMenu() {
+  $ctxMenu.style.display = "none";
+}
+
+document.addEventListener("click", hideCtxMenu);
+
+// --- Node Dialog ---
+
+let dialogResolve = null;
+let dialogSelectedShape = "rect";
+
+function showNodeDialog(x, y, title, defaultLabel, defaultShape, okLabel) {
+  $nodeDialog.querySelector(".node-dialog-title").textContent = title;
+  $nodeDialogLabel.value = defaultLabel || "";
+  $nodeDialogOk.textContent = okLabel || "Add";
+  dialogSelectedShape = defaultShape || "rect";
+
+  $nodeDialog.querySelectorAll(".shape-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.shape === dialogSelectedShape);
+  });
+
+  $nodeDialog.style.display = "block";
+  $nodeDialog.style.left = `${x}px`;
+  $nodeDialog.style.top = `${y}px`;
+
+  requestAnimationFrame(() => {
+    const rect = $nodeDialog.getBoundingClientRect();
+    if (rect.right > window.innerWidth) $nodeDialog.style.left = `${Math.max(8, x - rect.width)}px`;
+    if (rect.bottom > window.innerHeight) $nodeDialog.style.top = `${Math.max(8, y - rect.height)}px`;
+    $nodeDialogLabel.focus();
+    $nodeDialogLabel.select();
+  });
+
+  return new Promise((resolve) => { dialogResolve = resolve; });
+}
+
+function hideNodeDialog(result) {
+  $nodeDialog.style.display = "none";
+  if (dialogResolve) {
+    dialogResolve(result);
+    dialogResolve = null;
+  }
+}
+
+$nodeDialog.querySelectorAll(".shape-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    dialogSelectedShape = btn.dataset.shape;
+    $nodeDialog.querySelectorAll(".shape-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+  });
+});
+
+$nodeDialogCancel.addEventListener("click", () => hideNodeDialog(null));
+$nodeDialogOk.addEventListener("click", () => {
+  const label = $nodeDialogLabel.value.trim();
+  const labelHidden = $nodeDialogLabel.style.display === "none";
+  if (label || labelHidden) hideNodeDialog({ label: label || "", shape: dialogSelectedShape });
+});
+$nodeDialogLabel.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const label = $nodeDialogLabel.value.trim();
+    if (label) hideNodeDialog({ label, shape: dialogSelectedShape });
+  }
+  if (e.key === "Escape") hideNodeDialog(null);
+});
+
+document.addEventListener("mousedown", (e) => {
+  if ($nodeDialog.style.display === "block" && !$nodeDialog.contains(e.target)) {
+    hideNodeDialog(null);
+  }
+});
+
+// --- SVG Icons for menu ---
+const ICONS = {
+  addChild: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>`,
+  branch: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>`,
+  shape: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>`,
+  delete: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+  addNode: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>`,
+  connect: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`,
+};
+
+// --- Context Menu Actions ---
+
+async function actionAddChild(parentId, x, y) {
+  const result = await showNodeDialog(x, y, "Add Child Node", "New Node", "rect", "Add");
+  if (!result) return;
+  const newId = getNextNodeId();
+  const code = editor.getValue();
+  editor.setValue(code + "\n  " + parentId + " --> " + newId + shapeWrap(result.label, result.shape));
+  showToast("Added: " + result.label);
+}
+
+async function actionAddBranch(parentId) {
+  const idYes = getNextNodeId();
+  const code1 = editor.getValue();
+  editor.setValue(code1 + "\n  " + parentId + " -- Yes --> " + idYes + "[Yes Path]");
+  const idNo = getNextNodeId();
+  const code2 = editor.getValue();
+  editor.setValue(code2 + "\n  " + parentId + " -- No --> " + idNo + "[No Path]");
+  showToast("Added Yes/No branch");
+}
+
+async function actionAddNewNode(x, y) {
+  const result = await showNodeDialog(x, y, "Add New Node", "New Node", "rect", "Add");
+  if (!result) return;
+  const newId = getNextNodeId();
+  const code = editor.getValue();
+  editor.setValue(code + "\n  " + newId + shapeWrap(result.label, result.shape));
+  showToast("Added: " + result.label);
+}
+
+async function actionChangeShape(nodeId, x, y) {
+  const currentShape = detectNodeShape(nodeId);
+  // Show dialog with label hidden (shape-only mode)
+  $nodeDialogLabel.style.display = "none";
+  const result = await showNodeDialog(x, y, "Change Shape", "placeholder", currentShape, "Apply");
+  $nodeDialogLabel.style.display = "";
+  if (!result || result.shape === currentShape) return;
+
+  const code = editor.getValue();
+  const lines = code.split("\n");
+  const shapePatterns = [
+    { re: new RegExp(`(\\b${nodeId}\\s*)\\(\\(([^)]*(?:\\)[^)]*)*?)\\)\\)`) },
+    { re: new RegExp(`(\\b${nodeId}\\s*)\\(\\[([^\\]]*?)\\]\\)`) },
+    { re: new RegExp(`(\\b${nodeId}\\s*)\\(([^)]*?)\\)(?!\\))`) },
+    { re: new RegExp(`(\\b${nodeId}\\s*)\\{([^}]*?)\\}`) },
+    { re: new RegExp(`(\\b${nodeId}\\s*)\\[(?!\\[)([^\\]]*?)\\]`) },
+  ];
+
+  let changed = false;
+  const newLines = lines.map(line => {
+    if (changed) return line;
+    for (const { re } of shapePatterns) {
+      const m = line.match(re);
+      if (m) {
+        const label = m[2];
+        changed = true;
+        return line.replace(re, nodeId + shapeWrap(label, result.shape));
+      }
+    }
+    return line;
+  });
+
+  if (changed) {
+    editor.setValue(newLines.join("\n"));
+    showToast("Shape changed");
+  }
+}
+
+function actionDeleteNode(nodeId) {
+  if (!confirm('Delete node "' + nodeId + '" and all its connections?')) return;
+  const code = editor.getValue();
+  const lines = code.split("\n");
+  const regex = new RegExp("\\b" + nodeId + "\\b");
+  const filtered = lines.filter(line => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("flowchart")) return true;
+    if (trimmed.startsWith("subgraph") || trimmed === "end") return true;
+    return !regex.test(trimmed);
+  });
+  editor.setValue(filtered.join("\n"));
+  showToast("Deleted node: " + nodeId);
+}
+
+function actionDeleteEdge(el) {
+  const edgePath = closestSvgAncestor(el, ".edgePath");
+  if (!edgePath) return;
+  const edgeId = edgePath.id || "";
+  // Mermaid v11 edge ID: "L_{renderId}-flowchart-A-{renderId}-flowchart-B-0"
+  // Extract the two node IDs between "flowchart-" segments
+  const parts = edgeId.match(/flowchart-([A-Za-z_]\w*)/g);
+  if (!parts || parts.length < 2) {
+    showToast("Could not identify this connection");
+    return;
+  }
+  const fromId = parts[0].replace("flowchart-", "");
+  const toId = parts[1].replace("flowchart-", "");
+  if (!confirm('Delete connection from "' + fromId + '" to "' + toId + '"?')) return;
+
+  const code = editor.getValue();
+  const lines = code.split("\n");
+  const fromRe = new RegExp("\\b" + fromId + "\\b");
+  const toRe = new RegExp("\\b" + toId + "\\b");
+  const filtered = lines.filter(line => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("flowchart")) return true;
+    const hasBoth = fromRe.test(trimmed) && toRe.test(trimmed);
+    const hasArrow = /-->|-.->|==>|--/.test(trimmed);
+    return !(hasBoth && hasArrow);
+  });
+  editor.setValue(filtered.join("\n"));
+  showToast("Deleted: " + fromId + " → " + toId);
+}
+
+/** Parse all node IDs and their labels from the code */
+function getNodeMap() {
+  const code = editor.getValue();
+  const map = {};
+  const reserved = new Set(["flowchart", "subgraph", "end", "style", "class", "click", "linkStyle", "classDef", "direction"]);
+  // Match: NodeId[label], NodeId(label), NodeId{label}, NodeId((label)), NodeId([label])
+  const patterns = [
+    /\b([A-Za-z_]\w*)\s*\(\(([^)]*(?:\)[^)]*)*?)\)\)/g,  // (( ))
+    /\b([A-Za-z_]\w*)\s*\(\[([^\]]*?)\]\)/g,              // ([ ])
+    /\b([A-Za-z_]\w*)\s*\[([^\]]*?)\]/g,                  // [ ]
+    /\b([A-Za-z_]\w*)\s*\(([^)]*?)\)(?!\))/g,             // ( )
+    /\b([A-Za-z_]\w*)\s*\{([^}]*?)\}/g,                   // { }
+  ];
+  for (const re of patterns) {
+    let m;
+    while ((m = re.exec(code)) !== null) {
+      const id = m[1];
+      const label = m[2].replace(/"/g, "");
+      if (!reserved.has(id) && !map[id]) {
+        map[id] = label || id;
+      }
+    }
+  }
+  return map;
+}
+
+function actionConnectTo(fromId, x, y) {
+  const nodeMap = getNodeMap();
+  delete nodeMap[fromId];
+  const ids = Object.keys(nodeMap);
+  if (ids.length === 0) { showToast("No other nodes to connect to"); return; }
+
+  const items = [{ label: "Connect to..." }];
+  ids.forEach(id => {
+    items.push({
+      text: id + " — " + nodeMap[id],
+      icon: ICONS.connect,
+      action: () => {
+        const c = editor.getValue();
+        editor.setValue(c + "\n  " + fromId + " --> " + id);
+        showToast("Connected: " + fromId + " → " + nodeMap[id]);
+      }
+    });
+  });
+  showCtxMenu(x, y, items);
+}
+
+// --- Right-Click Handler ---
+
+$preview.addEventListener("contextmenu", (e) => {
+  // Skip in presentation mode
+  if (document.body.classList.contains("presentation-mode")) return;
+
+  // Skip pan-zoom control buttons
+  const onControls = closestSvgAncestor(e.target, "#svg-pan-zoom-controls") ||
+    (e.target.id && e.target.id.startsWith("svg-pan-zoom"));
+  if (onControls) return;
+
+  // Must be inside the SVG area
+  const svgEl = $preview.querySelector("svg");
+  if (!svgEl) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+  hideNodeDialog(null);
+
+  const mx = e.clientX;
+  const my = e.clientY;
+  const flowchart = isFlowchart();
+
+  if (flowchart) {
+    const nodeId = getNodeIdFromElement(e.target);
+    const onEdge = isEdgeElement(e.target);
+
+    if (nodeId) {
+      const nodeMap = getNodeMap();
+      const nodeLabel = nodeMap[nodeId] || nodeId;
+      showCtxMenu(mx, my, [
+        { label: nodeLabel },
+        { text: "Add Child Node", icon: ICONS.addChild, action: () => actionAddChild(nodeId, mx, my) },
+        { text: "Add Yes / No Branch", icon: ICONS.branch, action: () => actionAddBranch(nodeId) },
+        { text: "Connect To...", icon: ICONS.connect, action: () => actionConnectTo(nodeId, mx, my) },
+        "sep",
+        { text: "Change Shape", icon: ICONS.shape, action: () => actionChangeShape(nodeId, mx, my) },
+        "sep",
+        { text: "Delete Node", icon: ICONS.delete, danger: true, action: () => actionDeleteNode(nodeId) }
+      ]);
+    } else if (onEdge) {
+      showCtxMenu(mx, my, [
+        { text: "Delete Connection", icon: ICONS.delete, danger: true, action: () => actionDeleteEdge(e.target) }
+      ]);
+    } else {
+      showCtxMenu(mx, my, [
+        { text: "Add New Node", icon: ICONS.addNode, action: () => actionAddNewNode(mx, my) }
+      ]);
+    }
+  } else {
+    // Non-flowchart: show basic empty-space menu
+    showCtxMenu(mx, my, [
+      { label: "Visual editing: Flowchart only" },
+      {
+        text: "Switch to Flowchart",
+        icon: ICONS.addNode,
+        action: () => {
+          if (confirm("Replace current code with Flowchart template?")) {
+            editor.setValue(TEMPLATES.flowchart);
+          }
+        }
+      }
+    ]);
   }
 });
