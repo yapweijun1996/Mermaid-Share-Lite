@@ -4,6 +4,11 @@ A lightweight, serverless, client-side editor for [Mermaid](https://mermaid.js.o
 
 It allows you to edit diagrams with real-time preview and generate **shareable URLs** that store the entire diagram state. No database or backend is required—everything is compressed and stored in the URL hash.
 
+## Test Cases
+
+- [flowchart]([https://github.com/mermaid-js/mermaid](https://yapweijun1996.github.io/Mermaid-Share-Lite/#pako:eNpVkU1PwzAMhv-KlTOD-w4g1o-tk4rQYBKQ9RAal0a0ydSkrFLV_04-OlFyiGT7sd_XyUhKxZGsSdWoS1mzzsBrfJJgzyN9MS5uxA9CVHeqRcijZzCoTQGr1T1s6KGXPgZdomSdUEXo3fh6RDOpz1ga-Oy_4A6OmbveQGjdo57RyKPxmLkkVKqX_GE6yVCMbRGelEeSMVcdBrmSadQOc1DioHfUwdMiNzd-0ETy4t_IK53SVAzBz2wn9fktPaAXughTL5afoa2HdlfPYsCF591COl2krpoZPZ45M3YTpr9vWx407BDoUPeNmTUyD-9pruzzGwUSB_O3_Aztw8uQG9Ji1zLByXokpsbWfSnHitl5ZJp-ASkUkL0) (live Chrome MCP test)
+
+
 ## Features
 
 - **Real-time Preview:** See your diagram update instantly as you type (with debounce).
